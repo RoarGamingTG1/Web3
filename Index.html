@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIXHUB CRYPTO LIVE TRACKER - Price Dashboard</title>
+    
+    <style>
+        /* --- CSS STYLES --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #121212; /* Dark Background */
+            color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+
+        header {
+            background-color: #212121;
+            padding: 20px 0;
+            border-bottom: 3px solid #00c853; /* Green border for crypto vibe */
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #00c853; /* Primary Color */
+            font-size: 2.5em;
+            margin: 0;
+        }
+
+        h2 {
+            color: #b0b0b0;
+            font-size: 1.2em;
+            margin: 5px 0 0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .price-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        /* Individual Coin Card */
+        .coin-card {
+            background-color: #1e1e1e;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            text-align: left;
+            transition: transform 0.2s;
+        }
+
+        .coin-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.6);
+        }
+
+        .symbol {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .price {
+            font-size: 1.2em;
+            font-weight: 600;
+        }
+
+        .change {
+            font-size: 0.9em;
+            color: #888;
+        }
+
+        /* Colors for Trend */
+        .green { color: #00ff00; }
+        .red { color: #ff3333; }
+        .white { color: #f0f0f0; }
+        .orange { color: #ffa500; }
+
+        /* Mast Button Style */
+        #mast-button {
+            background-color: #ff0000; /* YouTube Red */
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px #b30000;
+            transition: all 0.1s;
+        }
+
+        #mast-button:active {
+            box-shadow: 0 2px #b30000;
+            transform: translateY(2px);
+        }
+
+        /* Loading Spinner */
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #00c853;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 50px auto;
+            display: none; 
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .footer {
+            margin-top: 50px;
+            color: #555;
+            font-size: 0.8em;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>MIXHUB YOUTUBE CHANNEL</h1>
+        <h2>🚀 Live Crypto Price Tracker - Top 10 Coins</h2>
+    </header>
+
+    <div class="container">
+        <div id="loading" class="loading-spinner" style="display: block;"></div>
+        
+        <div id="price-list" class="price-grid">
+            </div>
+
+        <button id="mast-button" onclick="window.open('https://www.youtube.com/@YOUR_MIXHUB_CHANNEL_LINK', '_blank')">
+            Subscribe to MIXHUB on YouTube! 🔥
+        </button>
+        
+        <p class="footer">Data powered by Binance API | Auto-refresh every 5 seconds.</p>
+    </div>
+
+    <script>
+        /* --- JAVASCRIPT LOGIC --- */
+        // Coins list (Top 10 Mainstream coins for reliable data)
+        const COINS = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT", "AVAXUSDT", "TRXUSDT", "LINKUSDT"];
+
+        const API_URL = "https://api.binance.com/api/v3/ticker/24hr?symbol=";
+
+        const priceListElement = document.getElementById('price-list');
+        const loadingElement = document.getElementById('loading');
+
+        // Function to format price
+        const formatPrice = (price) => {
+            if (price > 10) {
+                return price.toFixed(2);
+            } else if (price > 0.1) {
+                return price.toFixed(4);
+            } else {
+                return price.toFixed(6);
+            }
+        };
+
+        // Function to render individual coin data
+        const renderCoin = (symbol, newPrice, percentChange) => {
+            const cleanSymbol = symbol.replace('USDT', '');
+            const trendEmoji = percentChange > 0 ? '🟢' : percentChange < 0 ? '🔴' : '⚪';
+            const trendClass = percentChange > 0 ? 'green' : percentChange < 0 ? 'red' : 'white';
+            const percentFormatted = `${Math.abs(percentChange).toFixed(2)}%`;
+
+            return `
+                <div class="coin-card ${trendClass}">
+                    <div class="symbol">${trendEmoji} ${cleanSymbol}</div>
+                    <div class="price">$${formatPrice(newPrice)}</div>
+                    <div class="change">24H: <span class="${trendClass}">${percentFormatted}</span></div>
+                </div>
+            `;
+        };
+
+        // Function to fetch and update prices for all coins
+        const updatePrices = async () => {
+            loadingElement.style.display = 'block';
+            priceListElement.innerHTML = ''; // Clear previous data
+
+            const fetchPromises = COINS.map(coin => 
+                fetch(API_URL + coin)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.symbol) {
+                            return renderCoin(data.symbol, parseFloat(data.lastPrice), parseFloat(data.priceChangePercent));
+                        } else {
+                            const cleanSymbol = coin.replace('USDT', '');
+                            return `<div class="coin-card orange">
+                                        <div class="symbol">❌ ${cleanSymbol}</div>
+                                        <div class="price">N/A</div>
+                                        <div class="change">API Error/Not Found</div>
+                                    </div>`;
+                        }
+                    })
+                    .catch(error => {
+                        console.error(`Error fetching ${coin}:`, error);
+                        const cleanSymbol = coin.replace('USDT', '');
+                        return `<div class="coin-card red">
+                                    <div class="symbol">❌ ${cleanSymbol}</div>
+                                    <div class="price">Net Error</div>
+                                    <div class="change">Check Connection</div>
+                                </div>`;
+                    })
+            );
+
+            // Wait for all promises to resolve
+            const results = await Promise.all(fetchPromises);
+            
+            // Insert all results into the DOM
+            priceListElement.innerHTML = results.join('');
+            loadingElement.style.display = 'none';
+        };
+
+        // Start fetching prices immediately and then every 5 seconds
+        updatePrices();
+        setInterval(updatePrices, 5000); // 5 sec refresh
+    </script>
+</body>
+  </html>
